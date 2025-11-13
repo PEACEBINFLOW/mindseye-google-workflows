@@ -1,0 +1,94 @@
+id: wf_devlog_generation
+name: Devlog Generation from Ledger
+description: >
+  Produce Dev.to-style devlogs from a time window of runs
+  in the MindsEye ledger, optionally using Gemini to write
+  the summary intro.
+
+version: 0.1.0
+
+trigger:
+  type: scheduled
+  event: time_window
+  schedule: "weekly"
+  payload:
+    expected:
+      - from_date
+      - to_date
+
+steps:
+  - id: s1
+    name: Load nodes + runs from ledger
+    component: devlog
+    repo: mindseye-google-devlog
+    action: fetch_ledger_window
+    uses:
+      portal: ledger_to_devlog
+    inputs:
+      from_date: "{{ trigger.payload.from_date }}"
+      to_date: "{{ trigger.payload.to_date }}"
+    outputs:
+      nodes: Node[]
+      runs: Run[]
+
+  - id: s2
+    name: Aggregate runs into devlog entries
+    component: devlog
+    action: build_devlog_entries
+    inputs:
+      nodes:
+        from_step: s1
+      runs:
+        from_step: s1
+    outputs:
+      devlog_data:
+        type: DevlogData
+
+  - id: s3
+    name: Optionally call Gemini for narrative
+    component: devlog
+    action: enrich_with_gemini
+    inputs:
+      devlog_data:
+        from_step: s2
+    outputs:
+      devlog_data_enriched:
+        type: DevlogData
+
+  - id: s4
+    name: Render markdown
+    component: devlog
+    action: render_markdown
+    inputs:
+      devlog_data:
+        from_step: s3
+    outputs:
+      markdown: string
+      file_path: string
+
+  - id: s5
+    name: Publish to Docs or Dev.to (manual/optional)
+    component: devlog
+    action: publish
+    inputs:
+      markdown:
+        from_step: s4
+    outputs:
+      published_targets:
+        type: list
+        description: >
+          E.g. Google Doc URL, Dev.to draft URL, etc.
+
+ports:
+  - name: ledger_to_devlog
+    from:
+      component: ledger
+      surface: sheets
+    to:
+      component: devlog
+      surface: cli_or_runner
+    payload:
+      type: time_window
+      includes:
+        - nodes range
+        - runs range
