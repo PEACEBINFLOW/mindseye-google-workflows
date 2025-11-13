@@ -1,0 +1,85 @@
+# Event Types – MindsEye Google Workflows
+
+A catalog of valid `trigger.type` and `trigger.event` patterns.
+
+This is mostly for naming consistency across workflows.
+
+---
+
+## 1. Trigger types
+
+- `manual`  
+  Explicit CLI/UI call. Example: “run devlog for last 7 days”.
+
+- `manual_or_scheduled`  
+  Can be called by a person or a schedule. Example: orchestrator run.
+
+- `scheduled`  
+  Pure cron/time based triggers. Example: daily analytics refresh.
+
+- `workspace_event`  
+  Events coming from Google Workspace (Gmail, Docs, Drive, Forms, Calendar).
+
+- `conceptual`  
+  Non-executable, just a diagram/overview.
+
+---
+
+## 2. Workspace events (examples)
+
+These are **logical names**; actual technical events depend on Apps Script / APIs.
+
+- `gmail.message.labeled`
+  - A Gmail message/thread got a label (e.g. `MindsEye-*`).
+
+- `docs.menu.review_requested`
+  - User clicked “MindsEye → Review with MindsEye” in a Google Doc.
+
+- `drive.folder.scheduled_summary`
+  - Time-based trigger that runs a folder summary job.
+
+- `forms.response.submitted`
+  - New Google Forms response (for prompt intake).
+
+- `calendar.event.created` (future)
+  - New calendar event that might be linked to a node.
+
+---
+
+## 3. Ledger events (internal)
+
+These events aren’t from Google directly, but from intermediate steps:
+
+- `ledger.node.created`
+- `ledger.node.updated`
+- `ledger.run.created`
+- `ledger.run.updated`
+
+These can be used as triggers for:
+
+- Devlog generation
+- Analytics recalculation
+- Notification flows
+
+---
+
+## 4. Devlog / Analytics events
+
+- `devlog.window.generated`
+  - A devlog markdown file has been produced for a given window.
+
+- `analytics.refresh.completed`
+  - Analytics exports, stats, and charts have been refreshed.
+
+---
+
+## 5. Naming conventions
+
+- Use dot notation from **general → specific**:  
+  `surface.entity.action` or `domain.entity.action`.
+
+- Keep them **implementation-agnostic**:  
+  we don’t tie them to exact Google API method names here — just behavior.
+
+These event labels are for humans + high-level YAML;  
+each repo maps them to the actual APIs / Apps Script triggers.
