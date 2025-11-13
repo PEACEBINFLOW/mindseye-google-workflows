@@ -1,0 +1,44 @@
+# Logical roles → specific Google apps / surfaces
+
+apps:
+  sheets:
+    role: ledger_storage
+    usage:
+      - nodes tab
+      - runs tab
+      - analytics exports
+    notes: >
+      Central PET storage and the single source of truth.
+
+  docs:
+    role: long_form_content
+    usage:
+      - prompt descriptions
+      - devlog drafts
+      - summaries / reviews
+
+  gmail:
+    role: communication_stream
+    usage:
+      - incoming threads to process
+      - auto replies
+      - digest notifications
+
+  drive:
+    role: file_universe
+    usage:
+      - structured folder for MindsEye docs
+      - summary targets
+      - archives
+
+  forms:
+    role: intake
+    usage:
+      - prompt node intake (create new PET nodes)
+      - feedback forms tied to nodes/runs
+
+  calendar:
+    role: time_grid
+    usage:
+      - schedule-driven workflows (future)
+      - mapping nodes/runs to meetings or sprints
