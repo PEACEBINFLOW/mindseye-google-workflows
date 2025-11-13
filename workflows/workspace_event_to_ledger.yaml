@@ -1,0 +1,116 @@
+id: wf_workspace_event_to_ledger
+name: Workspace Event → Ledger Node / Run
+description: >
+  When a Gmail/Docs/Drive/Forms event occurs, create or update
+  nodes and runs in the MindsEye ledger, treating Google Workspace
+  as the entry portal.
+
+version: 0.1.0
+
+trigger:
+  type: workspace_event
+  event: any_of
+  sources:
+    - gmail.message.labeled
+    - docs.menu.review_requested
+    - drive.folder.scheduled_summary
+    - forms.response.submitted
+
+conditions:
+  - id: c1
+    description: >
+      Only process events that are explicitly tagged for MindsEye,
+      e.g. Gmail label "MindsEye-*", Docs menu "MindsEye", etc.
+
+steps:
+  - id: s1
+    name: Normalize workspace event
+    component: workspace_automation
+    repo: mindseye-workspace-automation
+    action: normalize_event
+    inputs:
+      raw_event: "{{ trigger }}"
+    outputs:
+      normalized:
+        fields:
+          surface: string       # gmail/docs/drive/forms
+          source_id: string     # threadId/docId/folderId/formId
+          source_url: string
+          title: string
+          summary: string
+          event_type: string
+
+  - id: s2
+    name: Ensure node exists in ledger
+    component: workspace_automation
+    repo: mindseye-workspace-automation
+    action: upsert_node_from_event
+    uses:
+      portal: workspace_event_to_ledger
+    inputs:
+      normalized_event:
+        from_step: s1
+    outputs:
+      node_id: NodeId
+
+  - id: s3
+    name: Append run in ledger
+    component: workspace_automation
+    repo: mindseye-workspace-automation
+    action: append_run_for_event
+    uses:
+      portal: workspace_event_to_ledger_runs
+    inputs:
+      node_id:
+        from_step: s2
+      normalized_event:
+        from_step: s1
+    outputs:
+      run_id: RunId
+
+  - id: s4
+    name: Notify orchestrator or devlog (optional)
+    component: workspace_automation
+    action: emit_signal
+    outputs:
+      event:
+        type: ledger.run.created
+        data:
+          run_id: "{{ s3.outputs.run_id }}"
+          node_id: "{{ s2.outputs.node_id }}"
+          surface: "{{ s1.outputs.normalized.surface }}"
+
+ports:
+  - name: workspace_event_to_ledger
+    from:
+      component: workspace_automation
+      surface: gmail/docs/drive/forms
+    to:
+      component: ledger
+      surface: sheets
+      resource: nodes
+    payload:
+      type: node_row
+      includes:
+        - title
+        - prompt_type   # inferred from surface/event_type
+        - doc_url       # source_url
+        - tags
+        - status
+
+  - name: workspace_event_to_ledger_runs
+    from:
+      component: workspace_automation
+      surface: gmail/docs/drive/forms
+    to:
+      component: ledger
+      surface: sheets
+      resource: runs
+    payload:
+      type: run_row
+      includes:
+        - node_id
+        - run_context (gmail/docs/drive/forms)
+        - input_ref (THREAD:/DOC:/FOLDER:/FORM:)
+        - output_ref (optional)
+        - notes
