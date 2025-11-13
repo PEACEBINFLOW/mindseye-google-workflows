@@ -1,0 +1,115 @@
+id: wf_overview
+name: MindsEye Google – System Overview
+description: >
+  High-level system map: how events from Google Workspace
+  flow through the MindsEye ledger, orchestrator, devlog,
+  and analytics layers.
+
+version: 0.1.0
+
+domains:
+  - ledger
+  - orchestrator
+  - workspace_automation
+  - devlog
+  - analytics
+
+trigger:
+  type: conceptual
+  event: system_diagram
+  description: >
+    This workflow describes the default "happy path" data movement.
+    It is not directly executable; it's a reference map.
+
+steps:
+  - id: s1
+    name: Workspace event enters system
+    from_component: workspace_automation
+    to_component: ledger
+    via_portal: workspace_event_to_ledger
+    description: >
+      Gmail / Docs / Drive / Forms triggers create or update
+      nodes and runs in the ledger (mindseye-google-ledger).
+
+  - id: s2
+    name: Orchestrator consumes ledger
+    from_component: ledger
+    to_component: orchestrator
+    via_portal: ledger_to_gemini
+    description: >
+      The orchestrator reads nodes + runs from the ledger and
+      executes prompt runs via Gemini, writing new runs back.
+
+  - id: s3
+    name: Devlog summarizes activity
+    from_component: ledger
+    to_component: devlog
+    via_portal: ledger_to_devlog
+    description: >
+      Devlog generator reads nodes + runs over a time window
+      and emits Dev.to-style markdown posts.
+
+  - id: s4
+    name: Analytics aggregates PET + runs
+    from_component: ledger
+    to_component: analytics
+    via_portal: ledger_to_analytics
+    description: >
+      Analytics scripts + Looker dashboards read nodes + runs
+      and compute metrics / charts.
+
+ports:
+  - name: workspace_event_to_ledger
+    from:
+      component: workspace_automation
+      surface: gmail/docs/drive/forms
+    to:
+      component: ledger
+      surface: sheets
+    payload:
+      type: event
+      includes:
+        - prompt metadata
+        - run metadata
+        - context (run_context, model, notes)
+
+  - name: ledger_to_gemini
+    from:
+      component: ledger
+      surface: sheets
+    to:
+      component: orchestrator
+      surface: node_cli_or_service
+    payload:
+      type: node_definition
+      includes:
+        - node_id
+        - prompt_type
+        - doc_url
+        - tags
+
+  - name: ledger_to_devlog
+    from:
+      component: ledger
+      surface: sheets
+    to:
+      component: devlog
+      surface: markdown_export
+    payload:
+      type: time_window
+      includes:
+        - nodes in window
+        - runs in window
+
+  - name: ledger_to_analytics
+    from:
+      component: ledger
+      surface: sheets
+    to:
+      component: analytics
+      surface: csv_export
+    payload:
+      type: analytics_export
+      includes:
+        - nodes CSV
+        - runs CSV
