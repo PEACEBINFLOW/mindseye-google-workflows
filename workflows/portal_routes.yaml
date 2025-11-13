@@ -1,0 +1,109 @@
+id: wf_portal_routes
+name: Portal Route Definitions
+description: >
+  Canonical definitions for "portals" between components
+  (repos + Google apps). Other workflows reference these
+  portal names to keep routing consistent.
+
+version: 0.1.0
+
+portals:
+  - name: workspace_event_to_ledger
+    description: >
+      Entry portal for Gmail/Docs/Drive/Forms events into
+      the MindsEye ledger (nodes + runs).
+    from:
+      component: workspace_automation
+      apps:
+        - gmail
+        - docs
+        - drive
+        - forms
+    to:
+      component: ledger
+      apps:
+        - sheets
+    payload:
+      includes:
+        - prompt metadata
+        - run metadata
+        - run_context
+
+  - name: ledger_to_gemini
+    description: >
+      Portal for sending node definitions from the ledger
+      into the orchestrator for execution via Gemini.
+    from:
+      component: ledger
+      apps:
+        - sheets
+    to:
+      component: orchestrator
+      apps:
+        - none (CLI/service)
+    payload:
+      includes:
+        - node_id
+        - prompt_type
+        - doc_url
+        - tags
+
+  - name: orchestrator_to_ledger_runs
+    description: >
+      Portal for writing back run rows from orchestrator
+      into the ledger 'runs' sheet.
+    from:
+      component: orchestrator
+    to:
+      component: ledger
+      apps:
+        - sheets
+    payload:
+      includes:
+        - run_id
+        - node_id
+        - model
+        - run_context
+        - input_ref
+        - output_ref
+        - score
+        - notes
+        - run_time
+
+  - name: ledger_to_devlog
+    description: >
+      Portal for time-window exports from ledger into
+      devlog generator.
+    from:
+      component: ledger
+      apps:
+        - sheets
+    to:
+      component: devlog
+      apps:
+        - none (CLI)
+    payload:
+      includes:
+        - nodes subrange
+        - runs subrange
+        - from_date
+        - to_date
+
+  - name: ledger_to_analytics
+    description: >
+      Portal for exporting CSVs from ledger into analytics
+      scripts and dashboards.
+    from:
+      component: ledger
+      apps:
+        - sheets
+    to:
+      component: analytics
+      apps:
+        - sheets
+        - looker_studio
+        - local_scripts
+    payload:
+      includes:
+        - nodes CSV
+        - runs CSV
