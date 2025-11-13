@@ -1,0 +1,75 @@
+id: wf_analytics_refresh
+name: Analytics Refresh Pipeline
+description: >
+  Regularly export ledger data, compute analytics stats and
+  charts, and refresh Looker/Sheets dashboards.
+
+version: 0.1.0
+
+trigger:
+  type: scheduled
+  event: nightly
+  schedule: "daily"
+
+steps:
+  - id: s1
+    name: Export nodes/runs from Sheets
+    component: analytics
+    repo: mindseye-google-analytics
+    action: export_ledger_to_csv
+    uses:
+      portal: ledger_to_analytics
+    outputs:
+      nodes_csv_path: string
+      runs_csv_path: string
+
+  - id: s2
+    name: Compute core stats
+    component: analytics
+    action: compute_stats
+    script: scripts/compute_stats.py
+    inputs:
+      nodes_csv_path:
+        from_step: s1
+      runs_csv_path:
+        from_step: s1
+    outputs:
+      summary_json_path: string
+
+  - id: s3
+    name: Generate charts
+    component: analytics
+    action: generate_charts
+    script: scripts/generate_charts.py
+    inputs:
+      nodes_csv_path:
+        from_step: s1
+      runs_csv_path:
+        from_step: s1
+    outputs:
+      charts_dir: string
+
+  - id: s4
+    name: Refresh dashboards (Looker / Sheets)
+    component: analytics
+    action: notify_dashboards
+    outputs:
+      event:
+        type: analytics.refresh.completed
+        data:
+          summary_json_path: "{{ s2.outputs.summary_json_path }}"
+          charts_dir: "{{ s3.outputs.charts_dir }}"
+
+ports:
+  - name: ledger_to_analytics
+    from:
+      component: ledger
+      surface: sheets
+    to:
+      component: analytics
+      surface: local_csv_or_bq
+    payload:
+      type: analytics_export
+      includes:
+        - nodes CSV
+        - runs CSV
