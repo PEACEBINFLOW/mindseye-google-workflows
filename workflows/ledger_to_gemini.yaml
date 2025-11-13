@@ -1,0 +1,110 @@
+id: wf_ledger_to_gemini
+name: Ledger → Gemini Orchestration
+description: >
+  Workflow describing how a MindsEye node in the ledger
+  is turned into one or more Gemini runs and recorded back
+  into the ledger.
+
+version: 0.1.0
+
+trigger:
+  type: manual_or_scheduled
+  event: run_node
+  source_component: orchestrator
+  payload:
+    expected:
+      - node_id
+      - run_mode   # e.g. "single", "batch", "sweep"
+      - options    # optional key/value params
+
+conditions:
+  - id: c1
+    description: "node_id must exist in ledger nodes sheet"
+  - id: c2
+    description: "node status must be 'active'"
+
+steps:
+  - id: s1
+    name: Fetch node from ledger
+    component: orchestrator
+    action: read_node_from_ledger
+    repo: mindseye-gemini-orchestrator
+    uses:
+      portal: ledger_to_gemini
+      inputs:
+        node_id: "{{ trigger.payload.node_id }}"
+      outputs:
+        node: Node
+
+  - id: s2
+    name: Build prompt payload
+    component: orchestrator
+    action: build_prompt
+    repo: mindseye-gemini-orchestrator
+    inputs:
+      node:
+        from_step: s1
+    outputs:
+      prompt_request:
+        type: gemini_request
+
+  - id: s3
+    name: Call Gemini
+    component: orchestrator
+    action: call_gemini
+    repo: mindseye-gemini-orchestrator
+    inputs:
+      request:
+        from_step: s2
+    outputs:
+      gemini_response:
+        type: gemini_response
+
+  - id: s4
+    name: Persist run to ledger
+    component: orchestrator
+    action: write_run_to_ledger
+    repo: mindseye-gemini-orchestrator
+    uses:
+      portal: orchestrator_to_ledger_runs
+    inputs:
+      node_id: "{{ trigger.payload.node_id }}"
+      gemini_response:
+        from_step: s3
+    outputs:
+      run_id: RunId
+
+  - id: s5
+    name: Emit run event for downstream systems
+    component: orchestrator
+    action: emit_run_event
+    outputs:
+      event:
+        type: ledger.run.created
+        data:
+          run_id: "{{ s4.outputs.run_id }}"
+          node_id: "{{ trigger.payload.node_id }}"
+
+ports:
+  - name: ledger_to_gemini
+    from:
+      component: ledger
+      surface: sheets
+      resource: nodes
+    to:
+      component: orchestrator
+      surface: http_or_cli
+    payload:
+      type: node_row
+      schema_ref: "mindseye-google-ledger/schema/ledger_columns.md#nodes"
+
+  - name: orchestrator_to_ledger_runs
+    from:
+      component: orchestrator
+    to:
+      component: ledger
+      surface: sheets
+      resource: runs
+    payload:
+      type: run_row
+      schema_ref: "mindseye-google-ledger/schema/ledger_columns.md#runs"
