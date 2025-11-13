@@ -1,0 +1,37 @@
+# Logical components → GitHub repositories
+
+components:
+  ledger:
+    repo: mindseye-google-ledger
+    description: >
+      Prompt Evolution Tree (PET) + runs ledger stored in Google Sheets,
+      with Apps Script helpers.
+
+  orchestrator:
+    repo: mindseye-gemini-orchestrator
+    description: >
+      Node/run orchestrator that reads from the ledger, calls Gemini,
+      and writes runs back.
+
+  workspace_automation:
+    repo: mindseye-workspace-automation
+    description: >
+      Apps Script automations for Gmail, Docs, Drive, etc. that log
+      into the ledger and interact with MindsEye.
+
+  devlog:
+    repo: mindseye-google-devlog
+    description: >
+      Generates Dev.to-style markdown posts from ledger data,
+      optionally using Gemini.
+
+  analytics:
+    repo: mindseye-google-analytics
+    description: >
+      Analytics exports, metrics, charts, and Looker dashboards over
+      nodes + runs.
+
+  workflows:
+    repo: mindseye-google-workflows
+    description: >
+      This repo – defines cross-repo workflows and portal routes.
